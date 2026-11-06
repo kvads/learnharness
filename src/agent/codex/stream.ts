@@ -125,6 +125,7 @@ function emptyMessage(model: Model<Api>): AssistantMessage {
 }
 
 async function productionRunner(request: CodexRunRequest): Promise<RunResult> {
+	if (process.env.NODE_ENV === "test") throw new Error("Real Codex execution is disabled in tests; inject a CodexRunner");
 	const workdir = await mkdtemp(join(tmpdir(), "learnharness-codex-"));
 	try {
 		const codex = new Codex({ env: codexEnvironment(), config: { features: { shell_tool: false }, project_doc_max_bytes: 0 } });

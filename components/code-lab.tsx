@@ -16,6 +16,17 @@ function attemptTone(status: CodeLabAttempt["status"]): string {
 	return "text-destructive";
 }
 
+function attemptLabel(status: CodeLabAttempt["status"]): string {
+	if (status === "passed") return "Пройдено";
+	if (status === "failed") return "Есть ошибки";
+	if (status === "timed_out") return "Превышено время";
+	return "Ошибка запуска";
+}
+
+function formatDuration(durationMs: number): string {
+	return `${(durationMs / 1000).toFixed(2).replace(".", ",")} с`;
+}
+
 function AttemptIcon({ status }: { status: CodeLabAttempt["status"] }) {
 	if (status === "passed") return <CheckCircle2Icon className="size-4" aria-hidden="true" />;
 	if (status === "timed_out") return <Clock3Icon className="size-4" aria-hidden="true" />;
@@ -42,7 +53,7 @@ export function CodeLab() {
 				setSnapshot(next);
 				setSelectedProjectId((current) => current || next.projects[0]?.id || "");
 			})
-			.catch(() => setError("Code Lab data could not be loaded."))
+			.catch(() => setError("Не удалось загрузить данные Code Lab. Обновите страницу и попробуйте снова."))
 			.finally(() => setLoading(false));
 	}, []);
 
@@ -69,14 +80,14 @@ export function CodeLab() {
 				body: JSON.stringify({ path: projectPath.trim(), label: projectLabel.trim() }),
 			});
 			const next = await response.json() as CodeLabSnapshot & { error?: string };
-			if (!response.ok) throw new Error(next.error || "The project could not be added.");
+			if (!response.ok) throw new Error(next.error || "Не удалось добавить проект.");
 			setSnapshot(next);
 			const added = next.projects.find((project) => project.path === projectPath.trim()) ?? next.projects.at(-1);
 			if (added) setSelectedProjectId(added.id);
 			setProjectPath("");
 			setProjectLabel("");
 		} catch (caught) {
-			setError(caught instanceof Error ? caught.message : "The project could not be added.");
+			setError(caught instanceof Error ? caught.message : "Не удалось добавить проект.");
 		} finally {
 			setSaving(false);
 		}
@@ -93,10 +104,10 @@ export function CodeLab() {
 				body: JSON.stringify({ projectId: selectedProject.id, checkId }),
 			});
 			const result = await response.json() as { attempt?: CodeLabAttempt; error?: string };
-			if (!response.ok || !result.attempt) throw new Error(result.error || "The check could not be completed.");
+			if (!response.ok || !result.attempt) throw new Error(result.error || "Не удалось выполнить проверку.");
 			setSnapshot((current) => ({ ...current, attempts: [result.attempt!, ...current.attempts] }));
 		} catch (caught) {
-			setError(caught instanceof Error ? caught.message : "The check could not be completed.");
+			setError(caught instanceof Error ? caught.message : "Не удалось выполнить проверку.");
 		} finally {
 			setRunning(null);
 		}
@@ -110,7 +121,7 @@ export function CodeLab() {
 				<Code2Icon className="size-4 text-cyan-400" aria-hidden="true" />
 				<div className="min-w-0">
 					<h1 className="font-ui text-sm font-semibold text-foreground">Code Lab</h1>
-					<p className="truncate text-xs text-muted-foreground">Run bounded checks and keep evidence from each attempt.</p>
+					<p className="truncate text-xs text-muted-foreground">Проверяйте код и сохраняйте результаты каждой попытки.</p>
 				</div>
 			</header>
 
@@ -119,12 +130,12 @@ export function CodeLab() {
 					<div className="rounded-xl border bg-card p-4 shadow-sm">
 						<div className="mb-4 flex items-start justify-between gap-4">
 							<div>
-								<h2 id="workspace-heading" className="font-ui text-sm font-semibold text-foreground">Workspace</h2>
-								<p className="mt-1 text-sm leading-6 text-muted-foreground">Connect a folder once. Checks always use predefined commands and never invoke a shell.</p>
+								<h2 id="workspace-heading" className="font-ui text-sm font-semibold text-foreground">Рабочая область</h2>
+								<p className="mt-1 text-sm leading-6 text-muted-foreground">Подключите папку проекта. Проверки используют только заданные команды и не запускают оболочку.</p>
 							</div>
 							{snapshot.projects.length > 0 && (
 								<select
-									aria-label="Active Code Lab project"
+									aria-label="Активный проект Code Lab"
 									value={selectedProjectId}
 									onChange={(event) => setSelectedProjectId(event.target.value)}
 									className="max-w-64 rounded-md border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -136,25 +147,25 @@ export function CodeLab() {
 
 						<form onSubmit={addProject} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
 							<label className="grid gap-1 text-xs text-muted-foreground">
-								Project folder
+								Папка проекта
 								<div className="flex gap-2">
-									<Input value={projectPath} onChange={(event) => setProjectPath(event.target.value)} placeholder="/absolute/path/to/project" aria-describedby="project-path-help" />
-									{typeof window !== "undefined" && window.lh?.chooseAttachmentFolder && <Button type="button" variant="outline" size="icon" aria-label="Choose project folder" onClick={() => void chooseFolder()}><FolderOpenIcon className="size-4" /></Button>}
+									<Input value={projectPath} onChange={(event) => setProjectPath(event.target.value)} placeholder="/абсолютный/путь/к/проекту" aria-describedby="project-path-help" />
+									{typeof window !== "undefined" && window.lh?.chooseAttachmentFolder && <Button type="button" variant="outline" size="icon" aria-label="Выбрать папку проекта" onClick={() => void chooseFolder()}><FolderOpenIcon className="size-4" /></Button>}
 								</div>
 							</label>
 							<label className="grid gap-1 text-xs text-muted-foreground">
-								Label <span className="sr-only">optional</span>
-								<Input value={projectLabel} onChange={(event) => setProjectLabel(event.target.value)} placeholder="Optional" />
+								Название <span className="sr-only">необязательно</span>
+								<Input value={projectLabel} onChange={(event) => setProjectLabel(event.target.value)} placeholder="Необязательно" />
 							</label>
-							<Button type="submit" disabled={!projectPath.trim() || saving} className="self-end">{saving ? "Adding…" : "Add project"}</Button>
+							<Button type="submit" disabled={!projectPath.trim() || saving} className="self-end">{saving ? "Добавление…" : "Добавить проект"}</Button>
 						</form>
-						<p id="project-path-help" className="mt-3 text-xs leading-5 text-muted-foreground">Running tests executes code from the selected project as your local user. Review unfamiliar projects before running them.</p>
+						<p id="project-path-help" className="mt-3 text-xs leading-5 text-muted-foreground">При запуске тестов код выбранного проекта выполняется от имени текущего пользователя. Не запускайте незнакомые проекты без проверки.</p>
 					</div>
 
 					<div className="rounded-xl border bg-card p-4 shadow-sm">
-						<h2 className="font-ui text-sm font-semibold text-foreground">Checks</h2>
-						<p className="mt-1 text-sm text-muted-foreground">Start with syntax, then use the project tools that are installed in its Python environment.</p>
-						<div className="mt-4 grid gap-3 sm:grid-cols-2">
+						<h2 className="font-ui text-sm font-semibold text-foreground">Проверки</h2>
+						<p className="mt-1 text-sm text-muted-foreground">Начните с синтаксиса, затем используйте инструменты из Python-окружения проекта.</p>
+						<div className="mt-4 grid gap-3 2xl:grid-cols-2">
 							{snapshot.checks.map((check) => (
 								<div key={check.id} className="flex min-h-32 flex-col rounded-lg border bg-background p-3">
 									<div className="flex items-start justify-between gap-3">
@@ -162,15 +173,15 @@ export function CodeLab() {
 											<h3 className="text-sm font-medium text-foreground">{check.label}</h3>
 											<p className="mt-1 text-xs leading-5 text-muted-foreground">{check.description}</p>
 										</div>
-										<Button size="sm" variant="outline" disabled={!selectedProject || running !== null} onClick={() => void runCheck(check.id)} aria-label={`Run ${check.label}`}>
-											<PlayIcon className="size-3.5" /> {running === check.id ? "Running…" : "Run"}
+										<Button size="sm" variant="outline" disabled={!selectedProject || running !== null} onClick={() => void runCheck(check.id)} aria-label={`Запустить: ${check.label}`}>
+											<PlayIcon className="size-3.5" /> {running === check.id ? "Выполняется…" : "Запустить"}
 										</Button>
 									</div>
 									<code className="mt-auto block truncate pt-3 font-mono text-[11px] text-muted-foreground">{check.command}</code>
 								</div>
 							))}
 						</div>
-						{loading && <p className="mt-4 text-sm text-muted-foreground" role="status">Loading Code Lab…</p>}
+						{loading && <p className="mt-4 text-sm text-muted-foreground" role="status">Загрузка Code Lab…</p>}
 						{error && <p className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}</p>}
 					</div>
 				</section>
@@ -178,29 +189,29 @@ export function CodeLab() {
 				<section className="rounded-xl border bg-card p-4 shadow-sm" aria-labelledby="attempts-heading">
 					<div className="flex items-center justify-between gap-3">
 						<div>
-							<h2 id="attempts-heading" className="font-ui text-sm font-semibold text-foreground">Attempts</h2>
-							<p className="mt-1 text-xs text-muted-foreground">Evidence stays local with the rest of your learning data.</p>
+							<h2 id="attempts-heading" className="font-ui text-sm font-semibold text-foreground">Попытки</h2>
+							<p className="mt-1 text-xs text-muted-foreground">Результаты хранятся локально вместе с остальными учебными данными.</p>
 						</div>
 						{selectedProject && <span className="max-w-44 truncate rounded-full border px-2.5 py-1 text-xs text-muted-foreground" title={selectedProject.path}>{selectedProject.label}</span>}
 					</div>
 
 					<div className="mt-4 space-y-3">
 						{attempts.length === 0 && !loading && (
-							<div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Run a check to create the first piece of evidence.</div>
+							<div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Запустите проверку, чтобы сохранить первую попытку.</div>
 						)}
 						{attempts.map((attempt) => (
 							<article key={attempt.id} className="overflow-hidden rounded-lg border bg-background">
 								<header className="flex items-center justify-between gap-3 border-b px-3 py-2">
 									<div className={cn("flex items-center gap-2 text-xs font-medium", attemptTone(attempt.status))}>
 										<AttemptIcon status={attempt.status} />
-										<span className="capitalize">{attempt.status.replace("_", " ")}</span>
+										<span>{attemptLabel(attempt.status)}</span>
 									</div>
-									<span className="text-[11px] tabular-nums text-muted-foreground">{(attempt.durationMs / 1000).toFixed(2)}s</span>
+									<span className="text-[11px] tabular-nums text-muted-foreground">{formatDuration(attempt.durationMs)}</span>
 								</header>
 								<div className="p-3">
 									<code className="block break-all font-mono text-[11px] text-muted-foreground">{attempt.command}</code>
 									{(attempt.stdout || attempt.stderr) && (
-										<pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-black/40 p-3 font-mono text-xs leading-5 text-foreground" tabIndex={0}>{attempt.stdout}{attempt.stdout && attempt.stderr ? "\n" : ""}{attempt.stderr}{attempt.truncated ? "\n… output truncated" : ""}</pre>
+										<pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-black/40 p-3 font-mono text-xs leading-5 text-foreground" tabIndex={0}>{attempt.stdout}{attempt.stdout && attempt.stderr ? "\n" : ""}{attempt.stderr}{attempt.truncated ? "\n… вывод сокращён" : ""}</pre>
 									)}
 								</div>
 							</article>

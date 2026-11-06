@@ -727,7 +727,7 @@ function SessionsSidebar() {
 					>
 						<Code2Icon className="size-3" />
 						Code Lab
-						<span className="sr-only">open the local code learning workspace</span>
+						<span className="sr-only">открыть локальную среду для изучения программирования</span>
 					</button>
 				</div>
 

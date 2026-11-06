@@ -10,6 +10,7 @@ import { addCodeLabProject, codeLabCommand, CodeLabError, codeLabSnapshot } from
 describe("Code Lab", () => {
 	it("publishes a closed check catalog", () => {
 		assert.deepEqual(CODE_LAB_CHECKS.map((check) => check.id), ["python-syntax", "pytest", "ruff", "mypy"]);
+		assert.deepEqual(CODE_LAB_CHECKS.map((check) => check.label), ["Синтаксис", "Тесты", "Ruff", "Типы"]);
 		assert.equal(isCodeLabCheckId("pytest"), true);
 		assert.equal(isCodeLabCheckId("rm -rf"), false);
 	});
@@ -46,7 +47,7 @@ describe("Code Lab", () => {
 	it("rejects relative paths and filesystem roots", () => {
 		const store = createCodeLabStore(fs.mkdtempSync(path.join(os.tmpdir(), "lh-code-lab-data-")));
 		assert.throws(() => addCodeLabProject("relative", undefined, store), (error: unknown) => error instanceof CodeLabError && error.status === 400);
-		assert.throws(() => addCodeLabProject(path.parse(process.cwd()).root, undefined, store), /filesystem root/);
+		assert.throws(() => addCodeLabProject(path.parse(process.cwd()).root, undefined, store), (error: unknown) => error instanceof CodeLabError && error.status === 400);
 	});
 
 	it("uses a project virtual environment without accepting command text", () => {

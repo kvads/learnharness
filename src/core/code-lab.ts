@@ -3,26 +3,26 @@ import type { CodeLabCheck, CodeLabCheckId } from "./contracts/code-lab.ts";
 export const CODE_LAB_CHECKS: readonly CodeLabCheck[] = [
 	{
 		id: "python-syntax",
-		label: "Syntax",
-		description: "Compile every Python module without running the application.",
+		label: "Синтаксис",
+		description: "Проверяет синтаксис всех Python-модулей без запуска приложения.",
 		command: "python -m compileall -q .",
 	},
 	{
 		id: "pytest",
-		label: "Tests",
-		description: "Run the project's pytest suite with concise output.",
+		label: "Тесты",
+		description: "Запускает тесты проекта через pytest с кратким выводом.",
 		command: "python -m pytest -q",
 	},
 	{
 		id: "ruff",
 		label: "Ruff",
-		description: "Check style and common correctness problems.",
+		description: "Проверяет стиль и находит распространённые ошибки в коде.",
 		command: "python -m ruff check .",
 	},
 	{
 		id: "mypy",
-		label: "Types",
-		description: "Run static type checks with the project's mypy configuration.",
+		label: "Типы",
+		description: "Проверяет типы с настройками mypy из проекта.",
 		command: "python -m mypy .",
 	},
 ] as const;

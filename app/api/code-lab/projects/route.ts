@@ -7,6 +7,6 @@ export async function POST(request: Request) {
 		return Response.json(codeLabSnapshot(), { status: 201 });
 	} catch (error) {
 		if (error instanceof CodeLabError) return Response.json({ error: error.message }, { status: error.status });
-		return Response.json({ error: "The Code Lab project could not be saved." }, { status: 500 });
+		return Response.json({ error: "Не удалось сохранить проект Code Lab." }, { status: 500 });
 	}
 }

@@ -31,19 +31,19 @@ export function codeLabSnapshot(targetStore: CodeLabStore = defaultStore()): Cod
 
 export function addCodeLabProject(rawPath: unknown, rawLabel?: unknown, targetStore: CodeLabStore = defaultStore()): CodeLabProject {
 	if (typeof rawPath !== "string" || !rawPath.trim() || rawPath.length > 4096 || rawPath.includes("\0")) {
-		throw new CodeLabError("Enter an absolute project folder path.", 400);
+		throw new CodeLabError("Укажите абсолютный путь к папке проекта.", 400);
 	}
-	if (!path.isAbsolute(rawPath)) throw new CodeLabError("Project paths must be absolute.", 400);
+	if (!path.isAbsolute(rawPath)) throw new CodeLabError("Путь к проекту должен быть абсолютным.", 400);
 	let real: string;
 	try {
 		real = fs.realpathSync(rawPath);
 		if (!fs.statSync(real).isDirectory()) throw new Error("not a directory");
 	} catch {
-		throw new CodeLabError("The project folder does not exist or is not readable.", 400);
+		throw new CodeLabError("Папка проекта не существует или недоступна для чтения.", 400);
 	}
-	if (path.parse(real).root === real) throw new CodeLabError("A filesystem root cannot be used as a Code Lab project.", 400);
+	if (path.parse(real).root === real) throw new CodeLabError("Корень файловой системы нельзя подключить как проект Code Lab.", 400);
 	const supplied = typeof rawLabel === "string" ? rawLabel.trim() : "";
-	if (supplied.length > 80) throw new CodeLabError("Project labels are limited to 80 characters.", 400);
+	if (supplied.length > 80) throw new CodeLabError("Название проекта не должно превышать 80 символов.", 400);
 	const project: CodeLabProject = {
 		id: `lab_${createHash("sha256").update(real).digest("hex").slice(0, 16)}`,
 		label: supplied || path.basename(real),
@@ -87,11 +87,11 @@ function childEnvironment(): NodeJS.ProcessEnv {
 }
 
 export async function runCodeLabCheck(rawProjectId: unknown, rawCheckId: unknown, targetStore: CodeLabStore = defaultStore()): Promise<CodeLabAttempt> {
-	if (typeof rawProjectId !== "string") throw new CodeLabError("Select a Code Lab project.", 400);
-	if (!isCodeLabCheckId(rawCheckId)) throw new CodeLabError("Select a supported Code Lab check.", 400);
+	if (typeof rawProjectId !== "string") throw new CodeLabError("Выберите проект Code Lab.", 400);
+	if (!isCodeLabCheckId(rawCheckId)) throw new CodeLabError("Выберите доступную проверку Code Lab.", 400);
 	const project = targetStore.getProject(rawProjectId);
-	if (!project) throw new CodeLabError("The Code Lab project no longer exists.", 404);
-	if (runningProjects.has(project.id)) throw new CodeLabError("A check is already running for this project.", 409);
+	if (!project) throw new CodeLabError("Проект Code Lab больше не существует.", 404);
+	if (runningProjects.has(project.id)) throw new CodeLabError("Для этого проекта уже выполняется проверка.", 409);
 
 	const command = codeLabCommand(project.path, rawCheckId);
 	const started = Date.now();

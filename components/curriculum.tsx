@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
 	BookOpenCheckIcon,
-	CheckCircle2Icon,
 	ChevronDownIcon,
 	Code2Icon,
 	FileQuestionIcon,
@@ -13,6 +12,7 @@ import {
 	PlayIcon,
 	PlusIcon,
 	SaveIcon,
+	SparklesIcon,
 	Trash2Icon,
 } from "lucide-react";
 import { SidebarToggle } from "@/components/sidebar";
@@ -74,7 +74,7 @@ function AssessmentEditor({ value, onChange, onStart, busy, final = false }: {
 						{final ? <GraduationCapIcon className="size-4 text-cyan-400" aria-hidden="true" /> : <FileQuestionIcon className="size-4 text-amber-400" aria-hidden="true" />}
 						<h3 id={`${value.id}-heading`} className="font-ui text-sm font-semibold text-foreground">{final ? "Итоговая аттестация" : "Контроль модуля"}</h3>
 					</div>
-					<p className="mt-1 text-xs leading-5 text-muted-foreground">Формат можно менять перед каждым запуском — он не связан с отметкой «изучено».</p>
+					<p className="mt-1 text-xs leading-5 text-muted-foreground">Формат можно менять перед каждым запуском.</p>
 				</div>
 				<Button type="button" size="sm" onClick={onStart} disabled={busy} aria-busy={busy}>
 					<PlayIcon className="size-3.5" aria-hidden="true" /> {busy ? "Создаём…" : "Начать проверку"}
@@ -112,13 +112,24 @@ function AssessmentEditor({ value, onChange, onStart, busy, final = false }: {
 export function Curriculum() {
 	const router = useRouter();
 	const [plan, setPlan] = useState<CurriculumPlan | null>(null);
+	const [programs, setPrograms] = useState<CurriculumSnapshot["programs"]>([]);
 	const [topics, setTopics] = useState<CurriculumGraphTopic[]>([]);
 	const [selectedId, setSelectedId] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [generating, setGenerating] = useState(false);
+	const [description, setDescription] = useState("");
 	const [launching, setLaunching] = useState("");
 	const [dirty, setDirty] = useState(false);
 	const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+
+	const applySnapshot = (snapshot: CurriculumSnapshot) => {
+		setPlan(snapshot.plan);
+		setPrograms(snapshot.programs);
+		setTopics(snapshot.graphTopics);
+		setSelectedId(snapshot.plan.modules[0]?.id ?? "");
+		setDirty(false);
+	};
 
 	useEffect(() => {
 		void fetch("/api/curriculum", { cache: "no-store" })
@@ -126,14 +137,26 @@ export function Curriculum() {
 				if (!response.ok) throw new Error();
 				return response.json() as Promise<CurriculumSnapshot>;
 			})
-			.then((snapshot) => {
-				setPlan(snapshot.plan);
-				setTopics(snapshot.graphTopics);
-				setSelectedId(snapshot.plan.modules[0]?.id ?? "");
-			})
+			.then(applySnapshot)
 			.catch(() => setMessage({ tone: "error", text: "Не удалось загрузить учебную программу. Обновите страницу и попробуйте снова." }))
 			.finally(() => setLoading(false));
 	}, []);
+
+	const loadProgram = async (programId: string) => {
+		if (programId === plan?.id) return;
+		if (dirty && !window.confirm("Несохранённые изменения текущей программы будут потеряны. Переключиться?")) return;
+		setLoading(true);
+		setMessage(null);
+		try {
+			const response = await fetch(`/api/curriculum?id=${encodeURIComponent(programId)}`, { cache: "no-store" });
+			if (!response.ok) throw new Error();
+			applySnapshot(await response.json() as CurriculumSnapshot);
+		} catch {
+			setMessage({ tone: "error", text: "Не удалось открыть учебную программу." });
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	const selected = plan?.modules.find((module) => module.id === selectedId) ?? null;
 	const lessonCount = useMemo(() => plan?.modules.reduce((sum, module) => sum + module.lessons.length, 0) ?? 0, [plan]);
@@ -156,12 +179,62 @@ export function Curriculum() {
 			const response = await fetch("/api/curriculum", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(plan) });
 			const result = await response.json() as CurriculumSnapshot & { error?: string };
 			if (!response.ok) throw new Error(result.error || "Не удалось сохранить программу.");
-			setPlan(result.plan);
-			setTopics(result.graphTopics);
-			setDirty(false);
+			applySnapshot(result);
 			setMessage({ tone: "ok", text: "Программа сохранена локально." });
 		} catch (error) {
 			setMessage({ tone: "error", text: error instanceof Error ? error.message : "Не удалось сохранить программу." });
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const createProgram = async () => {
+		if (dirty && !window.confirm("Создать новую программу без сохранения текущих изменений?")) return;
+		setSaving(true);
+		setMessage(null);
+		try {
+			const response = await fetch("/api/curriculum", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create" }) });
+			const result = await response.json() as CurriculumSnapshot & { error?: string };
+			if (!response.ok) throw new Error(result.error || "Не удалось создать программу.");
+			applySnapshot(result);
+			setMessage({ tone: "ok", text: "Новая программа создана." });
+		} catch (error) {
+			setMessage({ tone: "error", text: error instanceof Error ? error.message : "Не удалось создать программу." });
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const generateProgram = async () => {
+		if (!description.trim() || generating) return;
+		setGenerating(true);
+		setMessage(null);
+		try {
+			const response = await fetch("/api/curriculum", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "generate", description: description.trim() }) });
+			const result = await response.json() as CurriculumSnapshot & { error?: string };
+			if (!response.ok) throw new Error(result.error || "Codex не смог составить программу.");
+			applySnapshot(result);
+			setDescription("");
+			setMessage({ tone: "ok", text: "Codex составил новую программу. Проверьте маршрут и при необходимости отредактируйте его." });
+		} catch (error) {
+			setMessage({ tone: "error", text: error instanceof Error ? error.message : "Codex не смог составить программу." });
+		} finally {
+			setGenerating(false);
+		}
+	};
+
+	const deleteProgram = async () => {
+		if (!plan || !window.confirm(`Удалить программу «${plan.title}»? Это действие нельзя отменить.`)) return;
+		setSaving(true);
+		setMessage(null);
+		try {
+			const response = await fetch(`/api/curriculum?id=${encodeURIComponent(plan.id)}`, { method: "DELETE" });
+			const result = await response.json() as CurriculumSnapshot & { error?: string };
+			if (!response.ok) throw new Error(result.error || "Не удалось удалить программу.");
+			applySnapshot(result);
+			setMessage({ tone: "ok", text: "Программа удалена." });
+		} catch (error) {
+			setMessage({ tone: "error", text: error instanceof Error ? error.message : "Не удалось удалить программу." });
 		} finally {
 			setSaving(false);
 		}
@@ -215,15 +288,15 @@ export function Curriculum() {
 	};
 
 	const launchLesson = (module: CurriculumModule, lesson: CurriculumLesson) => launch(
-		lesson.id,
-		`Проведи полноценный урок «${lesson.title}» в рамках модуля «${module.title}». Цель урока: ${lesson.objective || "сформировать практическое понимание темы"}. Сначала кратко определи исходный уровень вопросами, затем объясни материал, дай примеры и практику. Если практика требует обработки данных, заранее предоставь готовый fixture-файл или полный блок входных данных — ученик должен реализовать алгоритм, а не вручную составлять заготовки.`,
+		`${plan?.id ?? "program"}:${lesson.id}`,
+		`[CURRICULUM LESSON]\nПрограмма: «${plan?.title ?? "Учебная программа"}».\nМодуль: «${module.title}».\nУрок: «${lesson.title}».\nОжидаемый результат: ${lesson.objective || "сформировать практическое понимание темы"}.\nПроведи этот урок через штатный адаптивный контур LearnHarness.`,
 		undefined,
 		lesson.knowledgeNodeIds,
 	);
 
 	const launchAssessment = (assessment: CurriculumAssessment, scope: string, knowledgeNodeIds: string[]) => launch(
-		assessment.id,
-		`Проведи контрольное тестирование по теме «${scope}». Формат: ${assessmentFormat(assessment)}. ${assessment.instructions || "Проверь понимание, применение и способность объяснить решение."} Не подсказывай ответ до попытки ученика. Для любой задачи обработки данных заранее дай готовый fixture-файл или полный блок входных данных. В конце дай разбор сильных сторон, пробелов и следующий шаг.`,
+		`${plan?.id ?? "program"}:${assessment.id}`,
+		`[CURRICULUM ASSESSMENT]\nПрограмма: «${plan?.title ?? "Учебная программа"}».\nОбласть проверки: «${scope}».\nФормат: ${assessmentFormat(assessment)}.\nУсловия: ${assessment.instructions || "Проверь понимание, применение и способность объяснить решение."}\nПроведи контроль через штатные инструменты LearnHarness и заверши доказательным разбором результата.`,
 		"practice",
 		knowledgeNodeIds,
 	);
@@ -238,16 +311,36 @@ export function Curriculum() {
 			<header className="lh-no-drag sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur">
 				<SidebarToggle />
 				<BookOpenCheckIcon className="size-4 text-cyan-400" aria-hidden="true" />
-				<div className="min-w-0 flex-1">
-					<h1 className="font-ui text-sm font-semibold text-foreground">Учебная программа</h1>
-					<p className="truncate text-xs text-muted-foreground">Маршрут от основ до итоговой аттестации — независимо от статуса знаний в графе.</p>
+				<div className="min-w-48 flex-1">
+					<h1 className="font-ui text-sm font-semibold text-foreground">Учебные программы</h1>
+					<p className="truncate text-xs text-muted-foreground">Несколько независимых маршрутов от цели до итоговой аттестации.</p>
 				</div>
+				<label className="sr-only" htmlFor="program-switcher">Текущая учебная программа</label>
+				<select id="program-switcher" value={plan.id} onChange={(event) => void loadProgram(event.target.value)} className="h-9 max-w-72 rounded-md border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+					{programs.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
+				</select>
+				<Button type="button" variant="outline" size="sm" onClick={() => void createProgram()} disabled={saving || generating}><PlusIcon className="size-3.5" aria-hidden="true" /> Новая</Button>
 				<Button type="button" variant="outline" size="sm" onClick={importGraph}><ListPlusIcon className="size-3.5" aria-hidden="true" /> Темы из графа</Button>
 				<Button type="button" size="sm" onClick={() => void save()} disabled={!dirty || saving} aria-busy={saving}><SaveIcon className="size-3.5" aria-hidden="true" /> {saving ? "Сохраняем…" : dirty ? "Сохранить" : "Сохранено"}</Button>
 			</header>
 
 			<div className="mx-auto w-full max-w-7xl p-4 lg:p-6">
-				<section className="rounded-xl border bg-card p-4 shadow-sm" aria-labelledby="program-heading">
+				<section className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-4 shadow-sm" aria-labelledby="ai-program-heading">
+					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+						<div>
+							<div className="flex items-center gap-2"><SparklesIcon className="size-4 text-cyan-400" aria-hidden="true" /><h2 id="ai-program-heading" className="font-ui text-sm font-semibold text-foreground">Составить новую программу с Codex</h2></div>
+							<p className="mt-1 text-xs leading-5 text-muted-foreground">Опишите цель, текущий уровень, желаемую глубину и ограничения. Codex спроектирует отдельную программу с модулями, уроками и проверками.</p>
+							<label className="mt-3 grid gap-1.5 text-xs text-muted-foreground">Чему вы хотите научиться
+								<Textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Например: хочу с нуля освоить алгоритмы и структуры данных на Python, чтобы уверенно проходить технические собеседования…" className="min-h-24 bg-background" />
+							</label>
+						</div>
+						<Button type="button" onClick={() => void generateProgram()} disabled={!description.trim() || generating || saving} aria-busy={generating} className="lg:mb-0.5">
+							<SparklesIcon className="size-3.5" aria-hidden="true" /> {generating ? "Проектируем программу…" : "Составить программу"}
+						</Button>
+					</div>
+				</section>
+
+				<section className="mt-6 rounded-xl border bg-card p-4 shadow-sm" aria-labelledby="program-heading">
 					<h2 id="program-heading" className="sr-only">Параметры учебной программы</h2>
 					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.45fr)]">
 						<div className="grid gap-3">
@@ -257,7 +350,7 @@ export function Curriculum() {
 						<div className="grid grid-cols-2 gap-3 self-start">
 							<div className="rounded-lg border bg-background p-3"><span className="text-2xl font-semibold tabular-nums text-foreground">{plan.modules.length}</span><p className="mt-1 text-xs text-muted-foreground">модулей</p></div>
 							<div className="rounded-lg border bg-background p-3"><span className="text-2xl font-semibold tabular-nums text-foreground">{lessonCount}</span><p className="mt-1 text-xs text-muted-foreground">уроков</p></div>
-							<div className="col-span-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs leading-5 text-muted-foreground"><CheckCircle2Icon className="mr-1.5 inline size-3.5 text-cyan-400" aria-hidden="true" />Программа описывает порядок обучения. Прогресс и «изученность» здесь намеренно не оцениваются.</div>
+							<Button type="button" variant="outline" className="col-span-2 justify-center text-destructive hover:text-destructive" onClick={() => void deleteProgram()} disabled={saving || generating}><Trash2Icon className="size-3.5" aria-hidden="true" /> Удалить программу</Button>
 						</div>
 					</div>
 				</section>

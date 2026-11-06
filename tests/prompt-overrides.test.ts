@@ -179,6 +179,7 @@ describe("the source-derived segment list", () => {
 			[
 				"system-prompt.md",
 				"prober/10-probe-doctrine.md",
+				"prober/15-curriculum.md",
 				"shared/10-voice.md",
 				"shared/15-accuracy.md",
 				"shared/16-mental-model.md",
@@ -190,6 +191,7 @@ describe("the source-derived segment list", () => {
 		);
 		assert.equal(teacher.some((s) => s.path === "teacher/05-method.md"), true);
 		assert.equal(teacher.some((s) => s.path === "teacher/10-planning.md"), true);
+		assert.equal(teacher.some((s) => s.path === "teacher/12-curriculum.md"), true);
 		assert.equal(teacher.some((s) => s.path === "teacher/60-probing-in-brief.md"), false);
 		assert.equal(
 			teacher.every(
@@ -419,13 +421,13 @@ describe("Practice settings API and effective prompt loading", () => {
 			assert.deepEqual(view[kind], effectivePromptSegments(kind, readSettingsRecord()?.agent?.prompts ?? {}));
 		}
 		assert.deepEqual(view.practice.map((s: { path: string }) => s.path), [
-			"practice/00-base.md", "practice/10-doctrine.md",
+			"practice/00-base.md", "practice/10-doctrine.md", "practice/15-assessment.md",
 			"shared/10-voice.md", "shared/15-accuracy.md", "shared/16-mental-model.md", "shared/40-formatting.md",
 		]);
 		assert.ok(!view.practice.some((s: { path: string }) => s.path === "system-prompt.md"));
 	});
 
-	for (const segment of ["practice/00-base.md", "practice/10-doctrine.md"]) {
+	for (const segment of ["practice/00-base.md", "practice/10-doctrine.md", "practice/15-assessment.md"]) {
 		it(`${segment}: save, enable, disable, re-enable and delete recover defaults without changing other agents`, async () => {
 			const defaults = Object.fromEntries((["teacher", "prober", "practice"] as const).map((kind) => [kind, teacherAgent.composeInstructions(kind)]));
 			const text = `SYNTHETIC PRACTICE OVERRIDE ${segment}`;

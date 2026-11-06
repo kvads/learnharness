@@ -1,6 +1,6 @@
 # Prompt composition
 
-The runtime composes prompts for **prober**, **teacher** and **practice** agents. The source of truth is [`listSourceSegments` / `effectivePromptSegments`](../prompt-segments.ts); [`composeInstructions`](../teacher-agent.ts) selects effective text, trims each segment, drops empty segments and joins them with `\n\n---\n\n`. Non-fragment documentation such as this README never enters the prompt.
+The runtime composes prompts for **prober**, **teacher** and **practice** agents. A separate structured curriculum architect reads `curriculum/00-planner.md` directly. The source of truth for conversational agents is [`listSourceSegments` / `effectivePromptSegments`](../prompt-segments.ts); [`composeInstructions`](../teacher-agent.ts) selects effective text, trims each segment, drops empty segments and joins them with `\n\n---\n\n`. Non-fragment documentation such as this README never enters the prompt.
 
 ## Composition order
 
@@ -36,6 +36,7 @@ The available segment list always comes from current source discovery. An overri
 
 - Teaching sessions start with the prober. A successful `probe_done` call **and matching result** select the teacher on later turns; a bare/refused call does not. The teacher plans and teaches with its own tool registry. The displayed plan → teach boundary is the first tagged `quiz`/`explain` call, not simply `plan_init`.
 - Practice sessions use the practice prompt from turn one. `problem` commits a solution before posing; `conclude` reveals it. The doctrine requires a pause after conclusion until the learner explicitly moves on. This is a conversational agent, not the retired problem-set generation/grading pipeline.
+- Saved-program launches carry explicit `[CURRICULUM LESSON]` or `[CURRICULUM ASSESSMENT]` markers. Lesson fragments keep probing and teaching scoped to one program lesson. The assessment fragment intentionally adds an evidence-collection mode to practice while preserving its problem/conclude mechanics.
 - Prompt instructions are not a substitute for structural validation. For example, `plan_init` can rewrite the map, and the conclude pause is doctrine rather than a terminating execute result. Read the actual registry and schemas before describing a behavior as enforced.
 
 See [architecture](../../../docs/architecture.md#teaching-and-practice) for runtime phases, registry differences and pause mechanics; [teaching methodology](../../../docs/teaching-methodology.md) for the method. Background workers and extraction have their own instructions in their implementation modules; this loader is not a catalog of every prompt in the application.

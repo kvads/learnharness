@@ -82,8 +82,10 @@ export interface CodeLabStore {
 }
 
 export interface CurriculumStore {
-	read(): CurriculumPlan | null;
+	list(): CurriculumPlan[];
+	read(id: string): CurriculumPlan | null;
 	write(plan: CurriculumPlan): void;
+	delete(id: string): boolean;
 }
 
 // ─── GraphStore — the append-only evidence ledgers (data/graph) ──────────────

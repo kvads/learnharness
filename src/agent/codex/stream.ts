@@ -22,7 +22,7 @@ interface CodexStep {
 	toolCalls: Array<{ name: string; argumentsJson: string }>;
 }
 
-interface CodexRunRequest {
+export interface CodexRunRequest {
 	prompt: string;
 	outputSchema: object;
 	reasoning: ModelReasoningEffort;
@@ -124,7 +124,7 @@ function emptyMessage(model: Model<Api>): AssistantMessage {
 	};
 }
 
-async function productionRunner(request: CodexRunRequest): Promise<RunResult> {
+export async function runCodexStructured(request: CodexRunRequest): Promise<RunResult> {
 	if (process.env.NODE_ENV === "test") throw new Error("Real Codex execution is disabled in tests; inject a CodexRunner");
 	const workdir = await mkdtemp(join(tmpdir(), "learnharness-codex-"));
 	try {
@@ -144,7 +144,7 @@ async function productionRunner(request: CodexRunRequest): Promise<RunResult> {
 	}
 }
 
-export function createCodexStream(runner: CodexRunner = productionRunner): StreamFunction<Api, SimpleStreamOptions> {
+export function createCodexStream(runner: CodexRunner = runCodexStructured): StreamFunction<Api, SimpleStreamOptions> {
 	return (model, context, options) => {
 		const output = createAssistantMessageEventStream();
 		void (async () => {

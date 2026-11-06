@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { designCurriculum } from "../agent/codex/curriculum-planner.ts";
 import type {
 	AssessmentFormat,
 	CurriculumAssessment,
@@ -41,9 +42,10 @@ function module(
 	};
 }
 
-export function defaultCurriculum(now = new Date().toISOString()): CurriculumPlan {
+export function defaultCurriculum(now = new Date().toISOString(), programId = `program_${randomUUID()}`): CurriculumPlan {
 	return {
 		version: 1,
+		id: programId,
 		title: "Python и Computer Science: от основ до проекта",
 		goal: "Научиться уверенно читать, проектировать, проверять и улучшать реальный код, понимая фундаментальные идеи computer science.",
 		createdAt: now,
@@ -94,6 +96,20 @@ export function defaultCurriculum(now = new Date().toISOString()): CurriculumPla
 	};
 }
 
+export function blankCurriculum(title = "Новая учебная программа"): CurriculumPlan {
+	const now = new Date().toISOString();
+	return {
+		version: 1,
+		id: `program_${randomUUID()}`,
+		title,
+		goal: "Опишите, чему должна научить эта программа.",
+		createdAt: now,
+		updatedAt: now,
+		modules: [],
+		finalAssessment: assessment(`assessment_${randomUUID()}`, "Итоговая аттестация", "mixed", "Проверь достижение главной цели программы на новой задаче."),
+	};
+}
+
 function text(value: unknown, field: string, max: number, allowEmpty = false): string {
 	if (typeof value !== "string") throw new CurriculumError(`Поле «${field}» должно быть текстом.`);
 	const result = value.trim();
@@ -102,8 +118,8 @@ function text(value: unknown, field: string, max: number, allowEmpty = false): s
 	return result;
 }
 
-function id(value: unknown): string {
-	return typeof value === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(value) ? value : `item_${randomUUID()}`;
+function id(value: unknown, prefix = "item"): string {
+	return typeof value === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(value) ? value : `${prefix}_${randomUUID()}`;
 }
 
 function sanitizeAssessment(value: unknown, fallbackTitle: string): CurriculumAssessment {
@@ -111,7 +127,7 @@ function sanitizeAssessment(value: unknown, fallbackTitle: string): CurriculumAs
 	const raw = value as Record<string, unknown>;
 	const format = formats.has(raw.format as AssessmentFormat) ? raw.format as AssessmentFormat : "free-response";
 	return {
-		id: id(raw.id),
+		id: id(raw.id, "assessment"),
 		title: text(raw.title ?? fallbackTitle, "название проверки", 140),
 		format,
 		customFormat: text(raw.customFormat ?? "", "свой формат", 160, true),
@@ -129,14 +145,14 @@ export function sanitizeCurriculum(value: unknown, previous?: CurriculumPlan | n
 		if (!Array.isArray(moduleRaw.lessons) || moduleRaw.lessons.length > 100) throw new CurriculumError("В одном модуле может быть не более 100 уроков.");
 		const moduleTitle = text(moduleRaw.title, `модуль ${moduleIndex + 1}`, 160);
 		return {
-			id: id(moduleRaw.id),
+			id: id(moduleRaw.id, "module"),
 			title: moduleTitle,
 			description: text(moduleRaw.description ?? "", "описание модуля", 1000, true),
 			lessons: moduleRaw.lessons.map((entry, lessonIndex) => {
 				if (!entry || typeof entry !== "object") throw new CurriculumError(`Урок ${lessonIndex + 1} имеет неверный формат.`);
 				const lessonRaw = entry as Record<string, unknown>;
 				return {
-					id: id(lessonRaw.id),
+					id: id(lessonRaw.id, "lesson"),
 					title: text(lessonRaw.title, `урок ${lessonIndex + 1}`, 160),
 					objective: text(lessonRaw.objective ?? "", "цель урока", 1000, true),
 					knowledgeNodeIds: Array.isArray(lessonRaw.knowledgeNodeIds)
@@ -150,6 +166,7 @@ export function sanitizeCurriculum(value: unknown, previous?: CurriculumPlan | n
 	const now = new Date().toISOString();
 	return {
 		version: 1,
+		id: previous?.id ?? id(raw.id, "program"),
 		title: text(raw.title, "название программы", 200),
 		goal: text(raw.goal, "цель программы", 2000),
 		createdAt: previous?.createdAt ?? (typeof raw.createdAt === "string" ? raw.createdAt : now),
@@ -159,22 +176,74 @@ export function sanitizeCurriculum(value: unknown, previous?: CurriculumPlan | n
 	};
 }
 
-export function curriculumSnapshot(): CurriculumSnapshot {
-	const stored = stores.curriculumStore.read();
-	let plan: CurriculumPlan;
-	try {
-		plan = stored ? sanitizeCurriculum(stored, stored, false) : defaultCurriculum();
-	} catch {
-		plan = defaultCurriculum();
+function validPrograms(): CurriculumPlan[] {
+	const programs: CurriculumPlan[] = [];
+	for (const stored of stores.curriculumStore.list()) {
+		try {
+			const plan = sanitizeCurriculum(stored, stored.id ? stored : null, false);
+			programs.push(plan);
+			if (!stored.id) stores.curriculumStore.write(plan);
+		} catch {
+			// One corrupt program must not hide the rest of the library.
+		}
 	}
-	if (!stored) stores.curriculumStore.write(plan);
+	if (programs.length > 0) return programs;
+	const initial = defaultCurriculum();
+	stores.curriculumStore.write(initial);
+	return [initial];
+}
+
+export function curriculumSnapshot(rawId?: unknown): CurriculumSnapshot {
+	const programs = validPrograms();
+	const requested = typeof rawId === "string" ? rawId : "";
+	const plan = programs.find((candidate) => candidate.id === requested) ?? programs[0]!;
 	const topics = new Map(stores.graphStore.readNodes().map((node) => [node.id, { id: node.id, name: node.name, statement: node.statement }]));
-	return { plan, graphTopics: [...topics.values()] };
+	return {
+		plan,
+		programs: programs.map(({ id, title, goal, updatedAt }) => ({ id, title, goal, updatedAt })),
+		graphTopics: [...topics.values()],
+	};
 }
 
 export function saveCurriculum(value: unknown): CurriculumSnapshot {
-	const current = stores.curriculumStore.read();
+	const rawId = value && typeof value === "object" ? (value as Record<string, unknown>).id : undefined;
+	if (typeof rawId !== "string") throw new CurriculumError("Не удалось определить учебную программу.");
+	const current = stores.curriculumStore.read(rawId);
+	if (!current) throw new CurriculumError("Учебная программа больше не существует.", 404);
 	const plan = sanitizeCurriculum(value, current);
 	stores.curriculumStore.write(plan);
+	return curriculumSnapshot(plan.id);
+}
+
+export function createCurriculum(): CurriculumSnapshot {
+	const plan = blankCurriculum();
+	stores.curriculumStore.write(plan);
+	return curriculumSnapshot(plan.id);
+}
+
+export async function generateCurriculum(rawDescription: unknown): Promise<CurriculumSnapshot> {
+	const description = text(rawDescription, "чему вы хотите научиться", 6000);
+	const generated = await designCurriculum(description);
+	const raw = {
+		...generated,
+		id: `program_${randomUUID()}`,
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		modules: generated.modules.map((generatedModule) => ({
+			...generatedModule,
+			id: `module_${randomUUID()}`,
+			lessons: generatedModule.lessons.map((generatedLesson) => ({ ...generatedLesson, id: `lesson_${randomUUID()}`, knowledgeNodeIds: [] })),
+			assessment: { ...generatedModule.assessment, id: `assessment_${randomUUID()}` },
+		})),
+		finalAssessment: { ...generated.finalAssessment, id: `assessment_${randomUUID()}` },
+	};
+	const plan = sanitizeCurriculum(raw);
+	stores.curriculumStore.write(plan);
+	return curriculumSnapshot(plan.id);
+}
+
+export function deleteCurriculum(rawId: unknown): CurriculumSnapshot {
+	if (typeof rawId !== "string" || !rawId) throw new CurriculumError("Не удалось определить учебную программу.");
+	if (!stores.curriculumStore.delete(rawId)) throw new CurriculumError("Учебная программа больше не существует.", 404);
 	return curriculumSnapshot();
 }

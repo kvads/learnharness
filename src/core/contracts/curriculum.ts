@@ -25,6 +25,7 @@ export interface CurriculumModule {
 
 export interface CurriculumPlan {
 	version: 1;
+	id: string;
 	title: string;
 	goal: string;
 	createdAt: string;
@@ -41,5 +42,6 @@ export interface CurriculumGraphTopic {
 
 export interface CurriculumSnapshot {
 	plan: CurriculumPlan;
+	programs: Array<Pick<CurriculumPlan, "id" | "title" | "goal" | "updatedAt">>;
 	graphTopics: CurriculumGraphTopic[];
 }

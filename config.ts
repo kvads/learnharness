@@ -29,6 +29,8 @@ export const PATHS = {
 	/** Debug artifacts (env-gated): data/debug/provider-events/<chatId>.jsonl
 	 * raw provider stream recordings (src/agent/provider-events.ts). */
 	debug: path.join(DATA_ROOT, "debug"),
+	/** Code Lab projects and execution evidence. */
+	codeLab: path.join(DATA_ROOT, "code-lab"),
 } as const;
 
 // ─── Models ────────────────────────────────────────────────────────────────

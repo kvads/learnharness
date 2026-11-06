@@ -39,6 +39,10 @@ Instead of just giving you an explanation, it uses your answers and thinking to 
 
 The agent can also research questions in the background, create visual explanations, show your own images in the lesson and mark them up with arrows and labels, and build interactive demonstrations.
 
+## Code Lab (fork preview)
+
+This fork adds a local workspace for learning through real code. Open **Code Lab** from the sidebar, connect an absolute project folder, and run bounded Python checks for syntax, tests, linting, and types. Each result is stored locally as attempt evidence. Commands are selected by the application and run without a shell; arbitrary command input is intentionally not supported.
+
 ## Knowledge that carries forward
 
 What you are taught accumulates as propositions and reasoning chains: individual claims and the premises that lead to them. The graph shows this structure, with links back to the source sessions. You can also import notes.

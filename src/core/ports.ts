@@ -26,6 +26,8 @@ import type {
 	SessionCheckpoint,
 	TurnUsage,
 	NotesSource,
+	CodeLabAttempt,
+	CodeLabProject,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -66,6 +68,16 @@ export interface ChatStore {
 	 *  job cleanup are the caller's choreography (core/graph-deletion.ts +
 	 *  the DELETE route), not the store's. */
 	deleteChat(id: string): boolean;
+}
+
+// ─── CodeLabStore — local project bindings + execution evidence ────────────
+
+export interface CodeLabStore {
+	listProjects(): CodeLabProject[];
+	getProject(id: string): CodeLabProject | null;
+	saveProject(project: CodeLabProject): void;
+	listAttempts(limit?: number): CodeLabAttempt[];
+	appendAttempt(attempt: CodeLabAttempt): void;
 }
 
 // ─── GraphStore — the append-only evidence ledgers (data/graph) ──────────────

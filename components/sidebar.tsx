@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { MenuShell } from "@/components/menu-shell";
 import { DeleteSessionDialog } from "@/components/delete-session-dialog";
 import type { ChatDeleteMode } from "@/src/core";
-import { DumbbellIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { Code2Icon, DumbbellIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { ActivitySection } from "@/components/activity-dock";
 import { CoverageMenuBlock } from "@/components/extraction-coverage";
 import { LhMark } from "@/components/lh-mark";
@@ -718,6 +718,16 @@ function SessionsSidebar() {
 						<DumbbellIcon className="size-3" />
 						Practice
 						<span className="sr-only">create a new practice session</span>
+					</button>
+					<button
+						type="button"
+						data-testid="open-code-lab"
+						onClick={() => router.push("/code-lab")}
+						className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+					>
+						<Code2Icon className="size-3" />
+						Code Lab
+						<span className="sr-only">open the local code learning workspace</span>
 					</button>
 				</div>
 

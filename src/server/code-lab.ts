@@ -9,7 +9,9 @@ import { stores } from "./stores.ts";
 
 const OUTPUT_LIMIT = 64 * 1024;
 const RUN_TIMEOUT_MS = 30_000;
+const SETUP_TIMEOUT_MS = 180_000;
 const runningProjects = new Set<string>();
+const CODE_LAB_PACKAGES = ["pytest", "ruff", "mypy"] as const;
 
 export class CodeLabError extends Error {
 	constructor(message: string, readonly status: number) {
@@ -67,6 +69,78 @@ function pythonExecutable(projectPath: string): string {
 	}) ?? (process.platform === "win32" ? "python" : "python3");
 }
 
+function localPythonExecutable(projectPath: string): string {
+	return process.platform === "win32"
+		? path.join(projectPath, ".venv", "Scripts", "python.exe")
+		: path.join(projectPath, ".venv", "bin", "python");
+}
+
+async function runSetupCommand(executable: string, args: string[], cwd: string): Promise<void> {
+	await new Promise<void>((resolve, reject) => {
+		let stderr = "";
+		let settled = false;
+		const child = spawn(executable, args, {
+			cwd,
+			env: childEnvironment(),
+			stdio: ["ignore", "ignore", "pipe"],
+			shell: false,
+			windowsHide: true,
+		});
+		child.stderr.on("data", (chunk: Buffer) => {
+			if (stderr.length < OUTPUT_LIMIT) stderr += chunk.toString("utf8").slice(0, OUTPUT_LIMIT - stderr.length);
+		});
+		const timer = setTimeout(() => {
+			child.kill("SIGTERM");
+			setTimeout(() => child.kill("SIGKILL"), 1_000).unref();
+			if (!settled) {
+				settled = true;
+				reject(new CodeLabError("Подготовка Python-окружения заняла слишком много времени. Проверьте подключение к интернету и повторите попытку.", 504));
+			}
+		}, SETUP_TIMEOUT_MS);
+		child.on("error", (error) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			reject(new CodeLabError(`Не удалось запустить Python: ${error.message}`, 500));
+		});
+		child.on("close", (code) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			if (code === 0) resolve();
+			else reject(new CodeLabError(`Не удалось подготовить Python-окружение.${stderr.trim() ? `\n${stderr.trim()}` : ""}`, 500));
+		});
+	});
+}
+
+async function moduleAvailable(python: string, moduleName: string, cwd: string): Promise<boolean> {
+	try {
+		await runSetupCommand(python, ["-m", moduleName, "--version"], cwd);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/** Create an isolated project environment and install the fixed Code Lab toolset. */
+export async function prepareCodeLabProject(project: CodeLabProject): Promise<void> {
+	const localPython = localPythonExecutable(project.path);
+	if (!fs.existsSync(localPython)) {
+		const systemPython = process.platform === "win32" ? "python" : "python3";
+		await runSetupCommand(systemPython, ["-m", "venv", path.join(project.path, ".venv")], project.path);
+	}
+	if (!(await moduleAvailable(localPython, "pip", project.path))) {
+		await runSetupCommand(localPython, ["-m", "ensurepip", "--upgrade"], project.path);
+	}
+	const missing: string[] = [];
+	for (const packageName of CODE_LAB_PACKAGES) {
+		if (!(await moduleAvailable(localPython, packageName, project.path))) missing.push(packageName);
+	}
+	if (missing.length > 0) {
+		await runSetupCommand(localPython, ["-m", "pip", "install", "--disable-pip-version-check", ...missing], project.path);
+	}
+}
+
 export function codeLabCommand(projectPath: string, checkId: CodeLabCheckId): CheckCommand {
 	const executable = pythonExecutable(projectPath);
 	const argsByCheck: Record<CodeLabCheckId, string[]> = {
@@ -93,10 +167,11 @@ export async function runCodeLabCheck(rawProjectId: unknown, rawCheckId: unknown
 	if (!project) throw new CodeLabError("Проект Code Lab больше не существует.", 404);
 	if (runningProjects.has(project.id)) throw new CodeLabError("Для этого проекта уже выполняется проверка.", 409);
 
-	const command = codeLabCommand(project.path, rawCheckId);
 	const started = Date.now();
 	runningProjects.add(project.id);
 	try {
+		await prepareCodeLabProject(project);
+		const command = codeLabCommand(project.path, rawCheckId);
 		const result = await new Promise<Pick<CodeLabAttempt, "status" | "exitCode" | "stdout" | "stderr" | "truncated">>((resolve) => {
 			let stdout = "", stderr = "", captured = 0, truncated = false, settled = false, timedOut = false;
 			const append = (target: "stdout" | "stderr", chunk: Buffer) => {

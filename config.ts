@@ -31,6 +31,8 @@ export const PATHS = {
 	debug: path.join(DATA_ROOT, "debug"),
 	/** Code Lab projects and execution evidence. */
 	codeLab: path.join(DATA_ROOT, "code-lab"),
+	/** Editable learning path, independent from knowledge mastery state. */
+	curriculum: path.join(DATA_ROOT, "curriculum"),
 } as const;
 
 // ─── Models ────────────────────────────────────────────────────────────────

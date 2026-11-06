@@ -50,3 +50,4 @@ export * from "./observability.ts";
 export * from "./model-catalog.ts";
 export { sessionCost } from "./pricing.ts";
 export * from "./code-lab.ts";
+export * from "./curriculum.ts";

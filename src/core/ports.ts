@@ -28,6 +28,7 @@ import type {
 	NotesSource,
 	CodeLabAttempt,
 	CodeLabProject,
+	CurriculumPlan,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -78,6 +79,11 @@ export interface CodeLabStore {
 	saveProject(project: CodeLabProject): void;
 	listAttempts(limit?: number): CodeLabAttempt[];
 	appendAttempt(attempt: CodeLabAttempt): void;
+}
+
+export interface CurriculumStore {
+	read(): CurriculumPlan | null;
+	write(plan: CurriculumPlan): void;
 }
 
 // ─── GraphStore — the append-only evidence ledgers (data/graph) ──────────────

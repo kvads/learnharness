@@ -42,6 +42,7 @@ export function CodeLab() {
 	const [saving, setSaving] = useState(false);
 	const [running, setRunning] = useState<CodeLabCheckId | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<string | null>(null);
 
 	useEffect(() => {
 		void fetch("/api/code-lab", { cache: "no-store" })
@@ -73,6 +74,7 @@ export function CodeLab() {
 		if (!projectPath.trim() || saving) return;
 		setSaving(true);
 		setError(null);
+		setNotice(null);
 		try {
 			const response = await fetch("/api/code-lab/projects", {
 				method: "POST",
@@ -86,6 +88,7 @@ export function CodeLab() {
 			if (added) setSelectedProjectId(added.id);
 			setProjectPath("");
 			setProjectLabel("");
+			setNotice("Python-окружение готово: pytest, Ruff и mypy установлены в .venv проекта.");
 		} catch (caught) {
 			setError(caught instanceof Error ? caught.message : "Не удалось добавить проект.");
 		} finally {
@@ -157,9 +160,10 @@ export function CodeLab() {
 								Название <span className="sr-only">необязательно</span>
 								<Input value={projectLabel} onChange={(event) => setProjectLabel(event.target.value)} placeholder="Необязательно" />
 							</label>
-							<Button type="submit" disabled={!projectPath.trim() || saving} className="self-end">{saving ? "Добавление…" : "Добавить проект"}</Button>
+							<Button type="submit" disabled={!projectPath.trim() || saving} className="self-end" aria-busy={saving}>{saving ? "Готовим среду…" : "Добавить проект"}</Button>
 						</form>
-						<p id="project-path-help" className="mt-3 text-xs leading-5 text-muted-foreground">При запуске тестов код выбранного проекта выполняется от имени текущего пользователя. Не запускайте незнакомые проекты без проверки.</p>
+						<p id="project-path-help" className="mt-3 text-xs leading-5 text-muted-foreground">При добавлении проекта Code Lab создаёт локальную .venv и устанавливает pytest, Ruff и mypy. Код выполняется от имени текущего пользователя — не подключайте незнакомые проекты без проверки.</p>
+						{notice && <p className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300" role="status">{notice}</p>}
 					</div>
 
 					<div className="rounded-xl border bg-card p-4 shadow-sm">

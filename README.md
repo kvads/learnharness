@@ -6,6 +6,10 @@
   </picture>
 </p>
 
+<p align="center">
+  <img src="docs/assets/code-learning-icon.png" alt="Code learning fork icon" width="144">
+</p>
+
 <p align="center"><strong>An agent harness for learning.</strong></p>
 
 <p align="center">

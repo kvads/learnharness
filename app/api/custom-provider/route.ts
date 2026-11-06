@@ -1,9 +1,14 @@
-/** PR #62's single custom endpoint: discover/manual connect, offline pins,
- * and disconnect. Host boundaries and mutations live behind the server barrel. */
-import { customProviderGet, customProviderMutation } from "@/src/server";
-
 export const dynamic = "force-dynamic";
-export const GET = customProviderGet;
-export const POST = customProviderMutation;
-export const PATCH = customProviderMutation;
-export const DELETE = customProviderMutation;
+
+function removed(_request?: Request) {
+	return Response.json({ error: "Custom providers were removed; LearnHarness uses Codex" }, { status: 410 });
+}
+
+async function removedMutation(_request?: Request) {
+	return removed();
+}
+
+export const GET = removed;
+export const POST = removedMutation;
+export const PATCH = removedMutation;
+export const DELETE = removedMutation;

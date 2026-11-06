@@ -26,6 +26,7 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { ModelRole } from "../../config.ts";
 import type { ChatSettings } from "./contracts/chat.ts";
 import type { SearchEngineId } from "./search.ts";
+import { CODEX_MODEL, CODEX_PROVIDER } from "./contracts/codex.ts";
 import {
 	BACKGROUND_MODEL_ROLES,
 	FACTORY_SETTINGS,
@@ -110,14 +111,12 @@ export interface EffectiveSettings {
  *  envelope. */
 export function resolveConversationSpec(
 	chat: ChatSettings | undefined,
-	strong: EffectiveSlot | null,
+	_strong: EffectiveSlot | null,
 ): EffectiveModelSpec | null {
-	const model = chat?.model ?? (strong ? { provider: strong.provider, id: strong.id } : undefined);
-	if (!model) return null;
 	return {
-		provider: model.provider,
-		id: model.id,
-		thinkingLevel: chat?.thinkingLevel ?? strong?.thinkingLevel,
+		provider: CODEX_PROVIDER,
+		id: CODEX_MODEL,
+		thinkingLevel: chat?.thinkingLevel,
 	};
 }
 
@@ -128,21 +127,15 @@ export function resolveConversationSpec(
  *  chat-handler overlays it itself). undefined = the chain came up
  *  empty; the per-need refusal gates fire on exactly that. This is the
  *  engine wiring's one call. */
-export function resolveRoleSpec(role: ModelRole, record: UserSettings | null): EffectiveModelSpec | undefined {
-	const bg = BACKGROUND_MODEL_ROLES as readonly string[];
-	const override = bg.includes(role) ? record?.agent?.models?.[role as BackgroundModelRole] : undefined;
-	return resolveModelSpec(role, override, record?.models);
+export function resolveRoleSpec(_role: ModelRole, _record: UserSettings | null): EffectiveModelSpec | undefined {
+	return { provider: CODEX_PROVIDER, id: CODEX_MODEL };
 }
 
 /** Resolve one slot to its configured view, or null when the tier holds
  *  no model (a thinkingLevel-only slot is inert — the level has nothing
  *  to ride without the factory floor). */
 export function resolveSlot(slot: ModelSlot | undefined): EffectiveSlot | null {
-	if (!slot?.model) return null;
-	return {
-		provider: slot.model.provider, id: slot.model.id, thinkingLevel: slot.thinkingLevel,
-		...(slot.cacheRetention !== undefined ? { cacheRetention: slot.cacheRetention } : {}),
-	};
+	return { provider: CODEX_PROVIDER, id: CODEX_MODEL, thinkingLevel: slot?.thinkingLevel };
 }
 
 /** Resolve one role's spec — the BYOK chain (owner 2026-09-22): role
@@ -152,18 +145,14 @@ export function resolveSlot(slot: ModelSlot | undefined): EffectiveSlot | null {
  *  from DEFAULT_THINKING_ORDER). undefined = no model resolved; the
  *  per-need refusal gates fire on exactly that. */
 export function resolveModelSpec(
-	role: ModelRole,
+	_role: ModelRole,
 	override: RoleModelOverride | undefined,
-	slots?: Partial<Record<ModelSlotName, ModelSlot>>,
+	_slots?: Partial<Record<ModelSlotName, ModelSlot>>,
 ): EffectiveModelSpec | undefined {
-	const slotName = ROLE_SLOT[role] as ModelSlotName | undefined;
-	const slot = slotName ? slots?.[slotName] : undefined;
-	const model = override?.model ?? slot?.model;
-	if (!model) return undefined;
 	return {
-		provider: model.provider,
-		id: model.id,
-		thinkingLevel: override?.thinkingLevel ?? slot?.thinkingLevel,
+		provider: CODEX_PROVIDER,
+		id: CODEX_MODEL,
+		thinkingLevel: override?.thinkingLevel,
 	};
 }
 

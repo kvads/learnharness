@@ -1,6 +1,9 @@
-import { subscriptionControlsResponse } from "@/src/server";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const GET = subscriptionControlsResponse;
-export const POST = subscriptionControlsResponse;
+
+function removed(_request?: Request) {
+	return Response.json({ error: "External subscriptions were removed; LearnHarness uses Codex" }, { status: 410 });
+}
+
+export const GET = removed;
+export const POST = removed;

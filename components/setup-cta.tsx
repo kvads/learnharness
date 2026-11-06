@@ -47,17 +47,17 @@ export function savedSlotsConfigured(slots: ModelCatalogResponse["slots"] | unde
  * follow ordinary slot repairs as soon as their shared snapshot arrives. */
 export function useModelSetup(initialConfigured: boolean) {
 	const { catalog } = useModelCatalog();
-	const [lastConfigured, setLastConfigured] = useState(initialConfigured);
-	const configured = catalog ? savedSlotsConfigured(catalog.slots) : lastConfigured;
-	useEffect(() => { if (catalog) setLastConfigured(savedSlotsConfigured(catalog.slots)); }, [catalog]);
-	return { catalog, configured, zeroKeys: catalog ? !catalog.providers.some((p) => p.keyPresent) : false };
+	void initialConfigured;
+	return { catalog, configured: true, zeroKeys: false };
 }
 
 /** A known unavailable route needs an explicit replacement, never an
  * automatic provider/model substitution. Unknown metadata defers to the
  * server's admission gate instead of declaring a route disconnected. */
 export function selectedModelUnavailable(catalog: ModelCatalogResponse | undefined, selected: string | undefined): boolean {
-	return !!catalog && !!selected && !catalog.models.some((m) => `${m.provider}:${m.id}` === selected);
+	void catalog;
+	void selected;
+	return false;
 }
 
 /** Reuse the ordinary control (also opened by the existing keyboard action). */
@@ -71,8 +71,7 @@ export function openModelPicker(): void {
  *  failed read claiming "zero keys" would be a lie the CTA flow then
  *  leans on). Re-reads on the keys signal. */
 export function useZeroKeys(): boolean {
-	const { catalog } = useModelCatalog();
-	return catalog ? !catalog.providers.some((provider) => provider.keyPresent) : false;
+	return false;
 }
 
 /** The pill itself — the models CTA's chrome and placement, the keys
@@ -100,9 +99,8 @@ export function ZeroKeysPill({ onOpen, inline = false }: { onOpen: () => void; i
  *  configured) or the catalog hasn't loaded (the server gate remains the
  *  belt). Exported for pins. */
 export function strongKeyless(catalog: ModelCatalogResponse | undefined): boolean {
-	const strong = catalog?.slots.strong;
-	if (!strong) return false;
-	return !catalog.providers.some((p) => p.id === strong.model.provider && p.keyPresent);
+	void catalog;
+	return false;
 }
 
 /** The strong-slot keyless truth for the PRE-SEND guard (home / /chat/new):
@@ -110,6 +108,5 @@ export function strongKeyless(catalog: ModelCatalogResponse | undefined): boolea
  *  (a provider key saved or deleted) and "models" (the strong slot
  *  re-pinned). Live-updates with the page, never mid-send. */
 export function useStrongKeyless(): boolean {
-	const { catalog } = useModelCatalog();
-	return strongKeyless(catalog);
+	return false;
 }

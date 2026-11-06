@@ -91,6 +91,11 @@ const nextConfig: NextConfig = {
 			// Wave E stage 2: resvg rasterizes visual-maker SVGs natively; same
 			// per-platform-binary story as the canvas above (one per build).
 			"node_modules/@resvg/resvg-js-*/**/*",
+			// Codex SDK resolves the native CLI from an optional, platform-specific
+			// package at runtime. Keep the JS launcher and the current platform
+			// payload together in standalone/Electron builds.
+			"node_modules/@openai/codex/**/*",
+			"node_modules/@openai/codex-*/**/*",
 			"node_modules/@earendil-works/pi-ai/dist/providers/data/**/*",
 			// Public native OAuth factories load these flows through variable imports.
 			// Electron main uses the same standalone SDK; the offline runtime gate
@@ -118,6 +123,8 @@ const nextConfig: NextConfig = {
 		"@napi-rs/canvas", // native binding — bundling breaks the .node require
 		"@silvia-odwyer/photon-node", // CJS loads its adjacent WASM from disk
 		"@resvg/resvg-js", // native binding — same
+		"@openai/codex-sdk", // runtime-resolves the platform CLI package
+		"@openai/codex", // keeps the optional native package resolution intact
 	],
 };
 

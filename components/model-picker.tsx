@@ -94,8 +94,8 @@ export function ModelControl({ chatId, onModelChange }: { chatId?: string; onMod
 				thinkingLevel: session.settings?.thinkingLevel ?? strong?.thinkingLevel,
 			} : undefined
 		: strong;
-	const effectiveId = override?.model?.id;
-	const effectiveProvider = override?.model?.provider;
+	const effectiveId = "default";
+	const effectiveProvider = "codex";
 	useEffect(() => {
 		onModelChange?.(effectiveProvider && effectiveId ? `${effectiveProvider}:${effectiveId}` : undefined);
 	}, [effectiveProvider, effectiveId, onModelChange]);

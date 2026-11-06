@@ -46,18 +46,14 @@ import { AgentSection } from "./agent-section.tsx";
 import type { ModelsSettings } from "@/src/core";
 import { MENU_CLOSE_EVENT, MENU_OPEN_EVENT } from "@/components/menu-shell";
 import { notifySettingsSaved } from "@/components/settings-signal";
-import { KeysSection } from "./keys-section.tsx";
 import { Hint } from "@/components/ui/hint";
 import { AppearanceSection, GraphSection } from "./appearance-section.tsx";
 import { KeyboardSection } from "./keyboard-section.tsx";
-import { ChatGPTUIProvider } from "./chatgpt-connection.tsx";
-import { NativeSubscriptionUIProvider } from "./subscription-connections.tsx";
 
 /** Owner (2026-09-20): hints earn their place — mechanics-explaining
  *  prose is out; only the keyboard note stays (storage location is a
  *  real question users ask). */
 const SECTIONS = [
-	{ id: "keys", label: "Providers" },
 	{ id: "agent", label: "Agent" },
 	{ id: "appearance", label: "Appearance" },
 	{ id: "graph", label: "Graph" },
@@ -82,21 +78,21 @@ export function SettingsDialogProvider({
 	children: React.ReactNode;
 }) {
 	const [show, setShow] = useState(false);
-	const [landOn, setLandOn] = useState<SectionId>("keys");
+	const [landOn, setLandOn] = useState<SectionId>("agent");
 	const [landOnRow, setLandOnRow] = useState<string | null>(null);
 	const open = useCallback((section?: string, row?: string) => {
-		setLandOn(section ? section as SectionId : "keys");
+		setLandOn(section && SECTIONS.some((item) => item.id === section) ? section as SectionId : "agent");
 		setLandOnRow(row ?? null);
 		setShow(true);
 	}, []);
 	useEffect(() => window.lh?.onOpenSettings?.((section) => open(section)), [open]);
 	return (
-		<ChatGPTUIProvider><NativeSubscriptionUIProvider><DialogContext.Provider value={{ open }}>
+		<DialogContext.Provider value={{ open }}>
 			{children}
 			{show && (
 				<SettingsDialog onClose={() => setShow(false)} initialSection={landOn} initialRow={landOnRow} />
 			)}
-		</DialogContext.Provider></NativeSubscriptionUIProvider></ChatGPTUIProvider>
+		</DialogContext.Provider>
 	);
 }
 
@@ -133,7 +129,7 @@ function SettingsDialog({
  *  (portals render nothing under renderToStaticMarkup). */
 export function SettingsDialogBody({
 	onClose,
-	initialSection = "keys",
+	initialSection = "agent",
 	initialRow = null,
 }: {
 	onClose: () => void;
@@ -368,11 +364,6 @@ export function SettingsDialogBody({
 											void write("general", { ...record.general, autoUpdate: on })
 										}
 									/>
-								</SettingsSection>
-							)}
-							{active === "keys" && (
-								<SettingsSection title="Providers" testid="section-keys">
-									<KeysSection initialRow={initialRow ?? undefined} />
 								</SettingsSection>
 							)}
 							{active === "agent" && (
